@@ -47,3 +47,39 @@ self.addEventListener('activate', (event) => {
     })
   );
 });
+
+// Escuchar el evento de sincronización en el Service Worker
+self.addEventListener('sync', function(event) {
+  if (event.tag === 'sync-requests') { // El tag debe coincidir con el que registraste
+    event.waitUntil(syncRequestsWithServer()); // Llama a la función que sincroniza las solicitudes
+  }
+});
+
+// Función para sincronizar las solicitudes guardadas en IndexedDB
+async function syncRequestsWithServer() {
+  const allRequests = await getAllRequests(); // Obtener todas las solicitudes de IndexedDB
+
+  for (const request of allRequests) {
+    const { url, data, method, id } = request;
+
+    try {
+      // Usar fetch para realizar la solicitud al servidor
+      const response = await fetch(url, {
+        method: method,
+        body: data,
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        // Si la solicitud fue exitosa, eliminarla de IndexedDB
+        await deleteRequest(id);
+      }
+    } catch (error) {
+      console.error('Error al sincronizar la solicitud:', error);
+      // Puedes decidir si hacer reintentos aquí o dejar que el evento sync lo maneje en la próxima reconexión
+    }
+  }
+}
+
+// Importar las funciones de IndexedDB
+importScripts('/idb.js');

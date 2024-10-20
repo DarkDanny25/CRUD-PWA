@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { saveRequestToIndexedDB, syncRequestsWithServer } from './db'; // Funciones IndexedDB para offline
+import { saveRequestToIndexedDB, syncRequestsWithServer } from './idb'; // Asegúrate de tener el path correcto para idb.js
 
 const API_URL = 'http://localhost:5000/api/devices';
 
@@ -24,6 +24,19 @@ axiosInstance.interceptors.response.use(
 
       // Guardar la solicitud en IndexedDB para sincronización posterior
       await saveRequestToIndexedDB(config.url, JSON.parse(config.data || '{}'), config.method); // Convertir datos a JSON si es necesario
+
+      // Registrar la sincronización en segundo plano si está disponible
+      if ('serviceWorker' in navigator && 'SyncManager' in window) {
+        navigator.serviceWorker.ready.then((registration) => {
+          registration.sync.register('sync-requests')
+            .then(() => {
+              console.log('Sincronización en segundo plano registrada');
+            })
+            .catch((err) => {
+              console.error('Error al registrar la sincronización:', err);
+            });
+        });
+      }
 
       // Retornar una respuesta simulada para evitar romper la aplicación
       return Promise.resolve({
